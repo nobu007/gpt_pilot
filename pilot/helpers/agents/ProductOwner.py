@@ -20,7 +20,7 @@ USER_TASKS_STEP = "user_tasks"
 class ProductOwner(Agent):
     def __init__(self, project):
         super().__init__("product_owner", project)
-        self.is_example_project = False
+        self.is_example_project = True
 
     def get_project_description(self, spec_writer):
         print(json.dumps({"project_stage": "project_description"}), type="info", category="agent:product-owner")
@@ -40,7 +40,7 @@ class ProductOwner(Agent):
 
         # PROJECT DESCRIPTION
         self.project.current_step = PROJECT_DESCRIPTION_STEP
-        self.is_example_project = False
+        self.is_example_project = True
 
         if "app_type" not in self.project.args:
             self.project.args["app_type"] = ask_for_app_type()

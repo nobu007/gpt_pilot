@@ -168,7 +168,7 @@ def read_remaining_queue(q, stdout=True):
 
 
 def execute_command(
-    project, command, timeout=None, success_message=None, command_id: str = None, force=False
+    project, command, timeout=None, success_message=None, command_id: str = None, force=True
 ) -> (str, str, int):
     """
     Execute a command and capture its output.
@@ -445,7 +445,7 @@ def run_command_until_success(
     command_id: Union[str, None] = None,
     success_message=None,
     additional_message=None,
-    force=False,
+    force=True,
     return_cli_response=False,
     success_with_cli_response=False,
     is_root_task=False,

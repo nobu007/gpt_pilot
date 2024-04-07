@@ -676,7 +676,8 @@ class Project:
         Returns:
             bool: True if there is an open IPC connection, False otherwise.
         """
-        return self.ipc_client_instance is not None and self.ipc_client_instance.client is not None
+        return False
+        # return self.ipc_client_instance is not None and self.ipc_client_instance.client is not None
 
     def finish_loading(self, do_cleanup=True):
         # if already done, don't do it again

@@ -9,7 +9,7 @@ services:
             # - AZURE_ENDPOINT=
             # - OPENROUTER_API_KEY=
             # In case of Azure endpoint, change this to your deployed model name
-            - MODEL_NAME=gpt-4
+            - MODEL_NAME=anthropic/claude-3-haiku-20240307
             - MAX_TOKENS=8192
             - DATABASE_TYPE=postgres
             - DB_NAME=pilot
@@ -20,13 +20,14 @@ services:
             # Folders which shouldn't be tracked in workspace (useful to ignore folders created by compiler)
             # IGNORE_PATHS=folder1,folder2
         volumes:
-            - ~/gpt-pilot-workspace:/usr/src/app/workspace
+            - ~/workspace:/usr/src/app/workspace
         build:
             context: .
             dockerfile: Dockerfile
         ports:
             - "7681:7681"
             - "3000:3000"
+            - "5173:5173"
         depends_on:
             postgres:
                 condition: service_healthy
