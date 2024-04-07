@@ -10,7 +10,7 @@ class ApiKeyNotDefinedError(Exception):
 
 
 class CommandFinishedEarly(Exception):
-    def __init__(self, message='Command finished before timeout. Handling early completion...'):
+    def __init__(self, message="Command finished before timeout. Handling early completion..."):
         self.message = message
         super().__init__(message)
 
@@ -23,7 +23,7 @@ class TokenLimitError(Exception):
 
 
 class TooDeepRecursionError(Exception):
-    def __init__(self, message='Recursion is too deep!'):
+    def __init__(self, message="Recursion is too deep!"):
         self.message = message
         super().__init__(message)
 
@@ -43,6 +43,6 @@ class ApiError(Exception):
 
 
 class GracefulExit(Exception):
-    def __init__(self, message='Graceful exit'):
+    def __init__(self, message="Graceful exit"):
         self.message = message
         super().__init__(message)

@@ -1,9 +1,10 @@
-from pathlib import Path
 import os
+from pathlib import Path
 from typing import Optional, Union
 
-from utils.style import color_green
 from utils.ignore import IgnoreMatcher
+from utils.style import color_green
+
 
 def update_file(path: str, new_content: Union[str, bytes], project=None):
     """
@@ -31,14 +32,12 @@ def update_file(path: str, new_content: Union[str, bytes], project=None):
         file.write(new_content)
         if project is not None:  # project can be None only in tests
             if not project.skip_steps:
-                print({"path": path, "line": None}, type='openFile')
+                print({"path": path, "line": None}, type="openFile")
                 if not project.check_ipc():
                     print(color_green(f"Updated file {path}"))
 
 
-def get_file_contents(
-    path: str, project_root_path: str
-) -> dict[str, Union[str, bytes]]:
+def get_file_contents(path: str, project_root_path: str) -> dict[str, Union[str, bytes]]:
     """
     Get file content and metadata.
 
@@ -75,8 +74,8 @@ def get_file_contents(
     file_name = os.path.basename(path)
     relative_path = str(Path(path).parent.relative_to(project_root_path))
 
-    if relative_path == '.':
-        relative_path = ''
+    if relative_path == ".":
+        relative_path = ""
 
     return {
         "name": file_name,
@@ -108,10 +107,7 @@ def get_directory_contents(
     # TODO: Convert to use pathlib.Path.walk()
     for dpath, dirs, files in os.walk(directory):
         # In-place update of dirs so that os.walk() doesn't traverse them
-        dirs[:] = [
-            d for d in dirs
-            if not matcher.ignore(os.path.join(dpath, d))
-        ]
+        dirs[:] = [d for d in dirs if not matcher.ignore(os.path.join(dpath, d))]
 
         for file in files:
             full_path = os.path.join(dpath, file)
@@ -135,10 +131,7 @@ def clear_directory(directory: str, ignore: Optional[list[str]] = None):
     # TODO: Convert to use pathlib.Path.walk()
     for dpath, dirs, files in os.walk(directory, topdown=True):
         # In-place update of dirs so that os.walk() doesn't traverse them
-        dirs[:] = [
-            d for d in dirs
-            if not matcher.ignore(os.path.join(dpath, d))
-        ]
+        dirs[:] = [d for d in dirs if not matcher.ignore(os.path.join(dpath, d))]
 
         for file in files:
             full_path = os.path.join(dpath, file)

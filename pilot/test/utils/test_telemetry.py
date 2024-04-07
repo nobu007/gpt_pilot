@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-
 from utils.telemetry import Telemetry
 
 
@@ -41,10 +40,7 @@ def test_telemetry_constructor_logging_enabled(mock_settings, caplog):
         "enabled": True,
     }
     Telemetry()
-    assert (
-        "Anonymous telemetry enabled (id=test-id), configure or disable it in /path/to/config"
-        in caplog.text
-    )
+    assert "Anonymous telemetry enabled (id=test-id), configure or disable it in /path/to/config" in caplog.text
 
 
 @patch("utils.telemetry.sys.platform", "test_platform")
@@ -379,7 +375,6 @@ def test_record_llm_request(mock_settings):
     assert telemetry.large_requests == [100000, 90000]
     # FIrst and last
     assert telemetry.slow_requests == [3600, 1800]
-
 
 
 @patch("utils.telemetry.settings")

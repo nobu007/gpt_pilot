@@ -1,19 +1,12 @@
 import os
 import shutil
 import zipfile
-from tempfile import TemporaryDirectory
 from subprocess import check_call
+from tempfile import TemporaryDirectory
 
 # Only these top-level items will be included in the package
-INCLUDE = [
-    "pilot",
-    "Dockerfile",
-    "docker-compose.yml",
-    "LICENSE",
-    "README.md",
-    "requirements.txt",
-    "setup.py"
-]
+INCLUDE = ["pilot", "Dockerfile", "docker-compose.yml", "LICENSE", "README.md", "requirements.txt", "setup.py"]
+
 
 def find_repo_root() -> str:
     """

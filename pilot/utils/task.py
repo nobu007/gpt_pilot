@@ -1,9 +1,9 @@
 import json
 from uuid import uuid4
 
-from utils.telemetry import telemetry
-from utils.exit import trace_code_event
 from const.telemetry import LOOP_THRESHOLD
+from utils.exit import trace_code_event
+from utils.telemetry import telemetry
 
 
 class Task:
@@ -47,11 +47,11 @@ class Task:
 
     def __init__(self):
         self.initial_data = {
-            'task_description': '',
-            'task_number': 0,
-            'steps': 0,
-            'iterations': 0,
-            'debugging': [],
+            "task_description": "",
+            "task_number": 0,
+            "steps": 0,
+            "iterations": 0,
+            "debugging": [],
         }
         self.data = self.initial_data.copy()
         self.ping_extension = True
@@ -73,7 +73,7 @@ class Task:
         :param value: value to increment by
         """
         self.data[key] += value
-        if key == 'iterations' and self.data[key] == LOOP_THRESHOLD + 1:
+        if key == "iterations" and self.data[key] == LOOP_THRESHOLD + 1:
             self.send()
 
     def start_new_task(self, task_description: str, i: int):
@@ -83,16 +83,15 @@ class Task:
         :param task_description: description of the task
         :param i: task number
         """
-        self.send(name='loop-end')
+        self.send(name="loop-end")
         self.clear()
-        self.set('task_description', task_description)
-        self.set('task_number', i)
-        self.set('loopId', f"{uuid4()}")
+        self.set("task_description", task_description)
+        self.set("task_number", i)
+        self.set("loopId", f"{uuid4()}")
 
-    def add_debugging_task(self, recursion_layer: int = None,
-                           command: dict = None,
-                           user_input: str = None,
-                           issue_description: str = None):
+    def add_debugging_task(
+        self, recursion_layer: int = None, command: dict = None, user_input: str = None, issue_description: str = None
+    ):
         """
         Add a debugging task to the task data structure
 
@@ -101,12 +100,14 @@ class Task:
         :param user_input: user input
         :param issue_description: description of the issue
         """
-        self.data['debugging'].append({
-            'recursion_layer': recursion_layer,
-            'command': command,
-            'user_inputs': [user_input] if user_input is not None else [],
-            'issue_description': issue_description,
-        })
+        self.data["debugging"].append(
+            {
+                "recursion_layer": recursion_layer,
+                "command": command,
+                "user_inputs": [user_input] if user_input is not None else [],
+                "issue_description": issue_description,
+            }
+        )
 
     def add_user_input_to_debugging_task(self, user_input: str):
         """
@@ -114,8 +115,8 @@ class Task:
 
         :param user_input: user input
         """
-        if self.data.get('debugging') and len(self.data['debugging']) > 0:
-            self.data['debugging'][-1]['user_inputs'].append(user_input)
+        if self.data.get("debugging") and len(self.data["debugging"]) > 0:
+            self.data["debugging"][-1]["user_inputs"].append(user_input)
 
     def clear(self):
         """
@@ -123,22 +124,27 @@ class Task:
         """
         self.data = self.initial_data.copy()
 
-    def send(self, name: str = 'loop-start', force: bool = False):
+    def send(self, name: str = "loop-start", force: bool = False):
         """
         Send the task data to telemetry
 
         :param name: name of the event
         :param force: force send the task data to telemetry
         """
-        if self.data['iterations'] > LOOP_THRESHOLD or force:
+        if self.data["iterations"] > LOOP_THRESHOLD or force:
             full_data = telemetry.data.copy()
-            full_data['task_with_loop'] = self.data.copy()
+            full_data["task_with_loop"] = self.data.copy()
             trace_code_event(name=name, data=full_data)
             if self.ping_extension and not force:
-                print(json.dumps({
-                    'pathId': telemetry.telemetry_id,
-                    'data': full_data,
-                }), type='loopTrigger')
+                print(
+                    json.dumps(
+                        {
+                            "pathId": telemetry.telemetry_id,
+                            "data": full_data,
+                        }
+                    ),
+                    type="loopTrigger",
+                )
                 # TODO: see if we want to ping the extension multiple times
                 self.ping_extension = False
 
@@ -146,4 +152,4 @@ class Task:
         """
         Send the task data to telemetry and exit the process
         """
-        self.send(name='loop-end')
+        self.send(name="loop-end")

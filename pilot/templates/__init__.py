@@ -2,9 +2,9 @@ import os
 from typing import TYPE_CHECKING, Optional
 from uuid import uuid4
 
-from utils.style import color_green_bold
 from logger.logger import logger
 from utils.exit import trace_code_event
+from utils.style import color_green_bold
 
 from .javascript_react import JAVASCRIPT_REACT
 from .node_express_mongoose import NODE_EXPRESS_MONGOOSE
@@ -40,14 +40,12 @@ def apply_project_template(
         return None
 
     root_path = project.root_path
-    project_name = project.args['name']
+    project_name = project.args["name"]
     project_description = project.main_prompt
     template = PROJECT_TEMPLATES[template_name]
     install_hook = template.get("install_hook")
 
-    r = Renderer(
-        os.path.join(os.path.dirname(__file__), "tpl")
-    )
+    r = Renderer(os.path.join(os.path.dirname(__file__), "tpl"))
 
     files = r.render_tree(
         template["path"],
@@ -67,12 +65,14 @@ def apply_project_template(
             f.write(file_content)
 
         rel_dir = os.path.dirname(file_name)
-        project_files.append({
-            "name": os.path.basename(file_name),
-             # ensure the path is compatible with how the rest of GPT Pilot thinks about paths
-            "path": "/" if rel_dir in ["", "."] else rel_dir,
-            "content": file_content,
-        })
+        project_files.append(
+            {
+                "name": os.path.basename(file_name),
+                # ensure the path is compatible with how the rest of GPT Pilot thinks about paths
+                "path": "/" if rel_dir in ["", "."] else rel_dir,
+                "content": file_content,
+            }
+        )
 
     print(color_green_bold(f"Applying project template {template['description']}...\n"))
     logger.info(f"Applying project template {template_name}...")
@@ -86,10 +86,10 @@ def apply_project_template(
             exc_info=True,
         )
 
-    last_development_step = project.checkpoints.get('last_development_step')
+    last_development_step = project.checkpoints.get("last_development_step")
     if last_development_step:
-        project.save_files_snapshot(last_development_step['id'])
+        project.save_files_snapshot(last_development_step["id"])
 
-    trace_code_event('project-template', {'template': template_name})
+    trace_code_event("project-template", {"template": template_name})
     summary = "The code so far includes:\n" + template["summary"]
     return summary

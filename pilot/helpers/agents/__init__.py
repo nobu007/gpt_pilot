@@ -1,3 +1,3 @@
-from .Architect import Architect, ARCHITECTURE_STEP
-from .Developer import Developer, ENVIRONMENT_SETUP_STEP
+from .Architect import ARCHITECTURE_STEP, Architect
+from .Developer import ENVIRONMENT_SETUP_STEP, Developer
 from .TechLead import TechLead

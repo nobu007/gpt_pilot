@@ -1,52 +1,55 @@
-from playhouse.shortcuts import model_to_dict
-from utils.style import color_yellow, color_red
-from peewee import DoesNotExist, IntegrityError
-from functools import reduce
 import operator
-from database.config import DB_NAME, DB_HOST, DB_PORT, DB_USER, DB_PASSWORD, DATABASE_TYPE
+from functools import reduce
+
+from database.config import DATABASE_TYPE, DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
+from peewee import DoesNotExist, IntegrityError
+from playhouse.shortcuts import model_to_dict
+from utils.style import color_red, color_yellow
+
 if DATABASE_TYPE == "postgres":
     import psycopg2
     from psycopg2.extensions import quote_ident
 
 import os
+
 from const.common import PROMPT_DATA_TO_IGNORE, STEPS
-from logger.logger import logger
-from database.models.components.base_models import database
-from database.models.user import User
 from database.models.app import App
-from database.models.project_description import ProjectDescription
-from database.models.user_stories import UserStories
-from database.models.user_tasks import UserTasks
 from database.models.architecture import Architecture
+from database.models.command_runs import CommandRuns
+from database.models.components.base_models import database
+from database.models.development import Development
 from database.models.development_planning import DevelopmentPlanning
 from database.models.development_steps import DevelopmentSteps
 from database.models.environment_setup import EnvironmentSetup
-from database.models.development import Development
+from database.models.feature import Feature
 from database.models.file_snapshot import FileSnapshot
-from database.models.command_runs import CommandRuns
+from database.models.files import File
+from database.models.project_description import ProjectDescription
+from database.models.user import User
 from database.models.user_apps import UserApps
 from database.models.user_inputs import UserInputs
-from database.models.files import File
-from database.models.feature import Feature
+from database.models.user_stories import UserStories
+from database.models.user_tasks import UserTasks
+from logger.logger import logger
 
 TABLES = [
-            User,
-            App,
-            ProjectDescription,
-            UserStories,
-            UserTasks,
-            Architecture,
-            DevelopmentPlanning,
-            DevelopmentSteps,
-            EnvironmentSetup,
-            Development,
-            FileSnapshot,
-            CommandRuns,
-            UserApps,
-            UserInputs,
-            File,
-            Feature,
-        ]
+    User,
+    App,
+    ProjectDescription,
+    UserStories,
+    UserTasks,
+    Architecture,
+    DevelopmentPlanning,
+    DevelopmentSteps,
+    EnvironmentSetup,
+    Development,
+    FileSnapshot,
+    CommandRuns,
+    UserApps,
+    UserInputs,
+    File,
+    Feature,
+]
 
 
 def get_created_apps():
@@ -56,9 +59,9 @@ def get_created_apps():
 def get_created_apps_with_steps():
     apps = get_created_apps()
     for app in apps:
-        app['id'] = str(app['id'])
-        app['steps'] = [step for step in STEPS[:STEPS.index(app['status']) + 1]] if app['status'] is not None else []
-        app['development_steps'] = get_all_app_development_steps(app['id'], loading_steps_only=True)
+        app["id"] = str(app["id"])
+        app["steps"] = [step for step in STEPS[: STEPS.index(app["status"]) + 1]] if app["status"] is not None else []
+        app["development_steps"] = get_all_app_development_steps(app["id"], loading_steps_only=True)
 
         task_counter = 1
         troubleshooting_counter = 1
@@ -66,42 +69,44 @@ def get_created_apps_with_steps():
         feature_end_counter = 1
         new_development_steps = []
 
-        for dev_step in app['development_steps']:
+        for dev_step in app["development_steps"]:
             # Filter out unwanted keys first
-            filtered_step = {k: v for k, v in dev_step.items() if k in {'id', 'prompt_path'}}
+            filtered_step = {k: v for k, v in dev_step.items() if k in {"id", "prompt_path"}}
 
-            if 'breakdown' in filtered_step['prompt_path']:
-                filtered_step['name'] = f"Task {task_counter}"
+            if "breakdown" in filtered_step["prompt_path"]:
+                filtered_step["name"] = f"Task {task_counter}"
                 task_counter += 1
                 # Reset troubleshooting counter on finding 'breakdown'
                 troubleshooting_counter = 1
 
-            elif 'iteration' in filtered_step['prompt_path']:
-                filtered_step['name'] = f"Troubleshooting {troubleshooting_counter}"
+            elif "iteration" in filtered_step["prompt_path"]:
+                filtered_step["name"] = f"Troubleshooting {troubleshooting_counter}"
                 troubleshooting_counter += 1
 
-            elif 'feature_plan' in filtered_step['prompt_path']:
-                filtered_step['name'] = f"Feature {feature_counter}"
+            elif "feature_plan" in filtered_step["prompt_path"]:
+                filtered_step["name"] = f"Feature {feature_counter}"
                 feature_counter += 1
                 # Reset task and troubleshooting counters on finding 'feature_plan'
                 task_counter = 1
                 troubleshooting_counter = 1
 
-            elif 'feature_summary' in filtered_step['prompt_path']:
-                filtered_step['name'] = f"Feature {feature_end_counter} end"
+            elif "feature_summary" in filtered_step["prompt_path"]:
+                filtered_step["name"] = f"Feature {feature_end_counter} end"
                 feature_end_counter += 1
 
             # Update the dev_step in the list
             new_development_steps.append(filtered_step)
 
-        last_step = get_last_development_step(app['id'])
+        last_step = get_last_development_step(app["id"])
         if last_step:
-            new_development_steps.append({
-                'id': last_step['id'],
-                'prompt_path': last_step['prompt_path'],
-                'name': 'Latest Step',
-            })
-        app['development_steps'] = new_development_steps
+            new_development_steps.append(
+                {
+                    "id": last_step["id"],
+                    "prompt_path": last_step["prompt_path"],
+                    "name": "Latest Step",
+                }
+            )
+        app["development_steps"] = new_development_steps
 
     return apps
 
@@ -113,12 +118,16 @@ def get_all_app_development_steps(app_id, last_step=None, loading_steps_only=Fal
         query = query.where(DevelopmentSteps.id <= last_step)
 
     if loading_steps_only:
-        query = query.where((DevelopmentSteps.prompt_path.contains('breakdown')) |
-                            # (DevelopmentSteps.prompt_path.contains('parse_task')) | Not needed for extension users but we can load this steps if needed
-                            (DevelopmentSteps.prompt_path.contains('iteration')) |
-                            # (DevelopmentSteps.prompt_path.contains('create_readme')) | Not needed for extension users but we can load this steps if needed
-                            (DevelopmentSteps.prompt_path.contains('feature_plan')) |
-                            (DevelopmentSteps.prompt_path.contains('feature_summary')))
+        query = query.where(
+            (DevelopmentSteps.prompt_path.contains("breakdown"))
+            |
+            # (DevelopmentSteps.prompt_path.contains('parse_task')) | Not needed for extension users but we can load this steps if needed
+            (DevelopmentSteps.prompt_path.contains("iteration"))
+            |
+            # (DevelopmentSteps.prompt_path.contains('create_readme')) | Not needed for extension users but we can load this steps if needed
+            (DevelopmentSteps.prompt_path.contains("feature_plan"))
+            | (DevelopmentSteps.prompt_path.contains("feature_summary"))
+        )
 
     return [model_to_dict(dev_step, recurse=False) for dev_step in query]
 
@@ -181,30 +190,26 @@ def save_app(project):
     try:
         app = project.app
         if app is None:
-            app = App.get(App.id == args['app_id'])
+            app = App.get(App.id == args["app_id"])
         for key, value in args.items():
-            if key != 'app_id' and value is not None:
+            if key != "app_id" and value is not None:
                 setattr(app, key, value)
 
         app.status = app_status
         app.save()
     except DoesNotExist:
-        if args.get('user_id') is not None:
+        if args.get("user_id") is not None:
             try:
-                user = get_user(user_id=args['user_id'])
+                user = get_user(user_id=args["user_id"])
             except ValueError:
-                user = save_user(args['user_id'], args['email'], args['password'])
-                args['user_id'] = user.id
-                args['email'] = user.email
+                user = save_user(args["user_id"], args["email"], args["password"])
+                args["user_id"] = user.id
+                args["email"] = user.email
         else:
             user = None
 
         app = App.create(
-            id=args['app_id'],
-            user=user,
-            app_type=args.get('app_type'),
-            name=args.get('name'),
-            status=app_status
+            id=args["app_id"], user=user, app_type=args.get("app_type"), name=args.get("name"), status=app_status
         )
 
     return app
@@ -223,16 +228,16 @@ def save_user_app(user_id, app_id, workspace):
 
 def save_progress(app_id, step, data):
     progress_table_map = {
-        'project_description': ProjectDescription,
-        'user_stories': UserStories,
-        'user_tasks': UserTasks,
-        'architecture': Architecture,
-        'development_planning': DevelopmentPlanning,
-        'environment_setup': EnvironmentSetup,
-        'development': Development,
+        "project_description": ProjectDescription,
+        "user_stories": UserStories,
+        "user_tasks": UserTasks,
+        "architecture": Architecture,
+        "development_planning": DevelopmentPlanning,
+        "environment_setup": EnvironmentSetup,
+        "development": Development,
     }
 
-    data['step'] = step
+    data["step"] = step
 
     ProgressTable = progress_table_map.get(step)
     if not ProgressTable:
@@ -258,7 +263,7 @@ def edit_development_plan(app_id, update_data):
     try:
         dev_plan = DevelopmentPlanning.get(app=app_id)
     except DevelopmentPlanning.DoesNotExist:
-        print(color_red(f"No development plan found for app {app_id}"), category='error')
+        print(color_red(f"No development plan found for app {app_id}"), category="error")
         return None
 
     for key, value in update_data.items():
@@ -270,12 +275,14 @@ def edit_development_plan(app_id, update_data):
 
 def edit_feature_plan(app_id, update_data):
     try:
-        dev_plan = (DevelopmentSteps.select()
-                    .where((DevelopmentSteps.app == app_id) & (DevelopmentSteps.prompt_path.contains('feature_plan')))
-                    .order_by(DevelopmentSteps.created_at.desc())
-                    .get())
+        dev_plan = (
+            DevelopmentSteps.select()
+            .where((DevelopmentSteps.app == app_id) & (DevelopmentSteps.prompt_path.contains("feature_plan")))
+            .order_by(DevelopmentSteps.created_at.desc())
+            .get()
+        )
     except DevelopmentPlanning.DoesNotExist:
-        print(color_red(f"No feature plan found for app {app_id}"), category='error')
+        print(color_red(f"No feature plan found for app {app_id}"), category="error")
         return None
 
     for key, value in update_data.items():
@@ -291,7 +298,9 @@ def get_app(app_id, error_if_not_found=True):
         return app
     except DoesNotExist:
         if error_if_not_found:
-            raise ValueError(f"No app with id: {app_id}; use python main.py --get-created-apps-with-steps to see created apps")
+            raise ValueError(
+                f"No app with id: {app_id}; use python main.py --get-created-apps-with-steps to see created apps"
+            )
         return None
 
 
@@ -305,13 +314,13 @@ def get_app_by_user_workspace(user_id, workspace):
 
 def get_progress_steps(app_id, step=None):
     progress_table_map = {
-        'project_description': ProjectDescription,
-        'user_stories': UserStories,
-        'user_tasks': UserTasks,
-        'architecture': Architecture,
-        'development_planning': DevelopmentPlanning,
-        'environment_setup': EnvironmentSetup,
-        'development': Development,
+        "project_description": ProjectDescription,
+        "user_stories": UserStories,
+        "user_tasks": UserTasks,
+        "architecture": Architecture,
+        "development_planning": DevelopmentPlanning,
+        "environment_setup": EnvironmentSetup,
+        "development": Development,
     }
 
     if step:
@@ -339,7 +348,8 @@ def get_progress_steps(app_id, step=None):
 def get_db_model_from_hash_id(model, app_id, previous_step, high_level_step):
     try:
         db_row = model.get(
-            (model.app == app_id) & (model.previous_step == previous_step) & (model.high_level_step == high_level_step))
+            (model.app == app_id) & (model.previous_step == previous_step) & (model.high_level_step == high_level_step)
+        )
     except DoesNotExist:
         return None
     return db_row
@@ -357,9 +367,7 @@ def hash_and_save_step(Model, app_id, unique_data_fields, data_fields, message):
         # existing_record = Model.get_or_none(
         #     (Model.app == app) & (Model.previous_step == unique_data_fields['previous_step']) & (
         #                 Model.high_level_step == unique_data_fields['high_level_step']))
-        inserted_id = (Model
-                       .insert(**unique_data_fields)
-                       .execute())
+        inserted_id = Model.insert(**unique_data_fields).execute()
 
         record = Model.get_by_id(inserted_id)
         logger.debug(color_yellow(f"{message} with id {record.id}"))
@@ -371,72 +379,82 @@ def hash_and_save_step(Model, app_id, unique_data_fields, data_fields, message):
 
 def save_development_step(project, prompt_path, prompt_data, messages, llm_response, exception=None):
     data_fields = {
-        'messages': messages,
-        'llm_response': llm_response,
-        'prompt_path': prompt_path,
-        'prompt_data': {} if prompt_data is None else {k: v for k, v in prompt_data.items() if
-                                                       k not in PROMPT_DATA_TO_IGNORE and not callable(v)},
-        'llm_req_num': project.llm_req_num,
-        'token_limit_exception_raised': exception
+        "messages": messages,
+        "llm_response": llm_response,
+        "prompt_path": prompt_path,
+        "prompt_data": {}
+        if prompt_data is None
+        else {k: v for k, v in prompt_data.items() if k not in PROMPT_DATA_TO_IGNORE and not callable(v)},
+        "llm_req_num": project.llm_req_num,
+        "token_limit_exception_raised": exception,
     }
 
     unique_data = {
-        'app': project.args['app_id'],
-        'previous_step': project.checkpoints['last_development_step']['id'] if project.checkpoints['last_development_step'] else None,
-        'high_level_step': project.current_step,
+        "app": project.args["app_id"],
+        "previous_step": project.checkpoints["last_development_step"]["id"]
+        if project.checkpoints["last_development_step"]
+        else None,
+        "high_level_step": project.current_step,
     }
 
-    development_step = hash_and_save_step(DevelopmentSteps, project.args['app_id'], unique_data, data_fields,
-                                          "Saved Development Step")
-    project.checkpoints['last_development_step'] = model_to_dict(development_step)
+    development_step = hash_and_save_step(
+        DevelopmentSteps, project.args["app_id"], unique_data, data_fields, "Saved Development Step"
+    )
+    project.checkpoints["last_development_step"] = model_to_dict(development_step)
 
     project.save_files_snapshot(development_step.id)
 
 
 def save_command_run(project, command, cli_response, done_or_error_response, exit_code):
-    if project.current_step != 'coding':
+    if project.current_step != "coding":
         return
 
     unique_data = {
-        'app': project.args['app_id'],
-        'previous_step': project.checkpoints['last_command_run'],
-        'high_level_step': str(project.checkpoints['last_development_step']['id']) if project.checkpoints['last_development_step'] else None,
+        "app": project.args["app_id"],
+        "previous_step": project.checkpoints["last_command_run"],
+        "high_level_step": str(project.checkpoints["last_development_step"]["id"])
+        if project.checkpoints["last_development_step"]
+        else None,
     }
 
     data_fields = {
-        'command': command,
-        'cli_response': cli_response,
-        'done_or_error_response': done_or_error_response,
-        'exit_code': exit_code,
+        "command": command,
+        "cli_response": cli_response,
+        "done_or_error_response": done_or_error_response,
+        "exit_code": exit_code,
     }
 
-    command_run = hash_and_save_step(CommandRuns, project.args['app_id'], unique_data, data_fields, "Saved Command Run")
-    project.checkpoints['last_command_run'] = command_run
+    command_run = hash_and_save_step(
+        CommandRuns, project.args["app_id"], unique_data, data_fields, "Saved Command Run"
+    )
+    project.checkpoints["last_command_run"] = command_run
     return command_run
 
 
 def save_user_input(project, query, user_input, hint):
-    if project.current_step != 'coding':
+    if project.current_step != "coding":
         return
 
     unique_data = {
-        'app': project.args['app_id'],
-        'previous_step': project.checkpoints['last_user_input'],
-        'high_level_step': str(project.checkpoints['last_development_step']['id']) if project.checkpoints['last_development_step'] else None,
+        "app": project.args["app_id"],
+        "previous_step": project.checkpoints["last_user_input"],
+        "high_level_step": str(project.checkpoints["last_development_step"]["id"])
+        if project.checkpoints["last_development_step"]
+        else None,
     }
     data_fields = {
-        'query': query,
-        'user_input': user_input,
-        'hint': hint,
+        "query": query,
+        "user_input": user_input,
+        "hint": hint,
     }
-    user_input = hash_and_save_step(UserInputs, project.args['app_id'], unique_data, data_fields, "Saved User Input")
-    project.checkpoints['last_user_input'] = user_input
+    user_input = hash_and_save_step(UserInputs, project.args["app_id"], unique_data, data_fields, "Saved User Input")
+    project.checkpoints["last_user_input"] = user_input
     return user_input
 
 
 def delete_all_subsequent_steps(project):
-    app = get_app(project.args['app_id'])
-    delete_subsequent_steps(DevelopmentSteps, app, project.checkpoints['last_development_step'])
+    app = get_app(project.args["app_id"])
+    delete_subsequent_steps(DevelopmentSteps, app, project.checkpoints["last_development_step"])
     # after implementation of backwards compatibility, we don't need to delete subsequent steps for CommandRuns and UserInputs
     # delete_subsequent_steps(CommandRuns, app, project.checkpoints['last_command_run'])
     # delete_subsequent_steps(UserInputs, app, project.checkpoints['last_user_input'])
@@ -444,15 +462,14 @@ def delete_all_subsequent_steps(project):
 
 def delete_subsequent_steps(Model, app, step):
     if isinstance(step, dict):
-        step_id = step.get('id')
-    elif hasattr(step, 'id'):
+        step_id = step.get("id")
+    elif hasattr(step, "id"):
         step_id = step.id
     else:
         step_id = None
     logger.info(color_red(f"Deleting subsequent {Model.__name__} steps after {step_id}"))
 
-    subsequent_steps = Model.select().where(
-        (Model.app == app) & (Model.previous_step == step_id))
+    subsequent_steps = Model.select().where((Model.app == app) & (Model.previous_step == step_id))
 
     for subsequent_step in subsequent_steps:
         if subsequent_step:
@@ -495,10 +512,11 @@ def delete_unconnected_steps_from(step, previous_step_field_name):
     connected_steps = get_all_connected_steps(step, previous_step_field_name)
     connected_step_ids = [s.id for s in connected_steps]
 
-    unconnected_steps = DevelopmentSteps.select().where(
-        (DevelopmentSteps.app == step.app) &
-        (DevelopmentSteps.id.not_in(connected_step_ids))
-    ).order_by(DevelopmentSteps.id.desc())
+    unconnected_steps = (
+        DevelopmentSteps.select()
+        .where((DevelopmentSteps.app == step.app) & (DevelopmentSteps.id.not_in(connected_step_ids)))
+        .order_by(DevelopmentSteps.id.desc())
+    )
 
     for unconnected_step in unconnected_steps:
         print(color_red(f"Deleting unconnected {step.__class__.__name__} step {unconnected_step.id}"))
@@ -506,12 +524,13 @@ def delete_unconnected_steps_from(step, previous_step_field_name):
 
 
 def save_file_description(project, path, name, description):
-    (File.insert(app=project.app, path=path, name=name, description=description)
-     .on_conflict(
-        conflict_target=[File.app, File.name, File.path],
-        preserve=[],
-        update={'description': description})
-     .execute())
+    (
+        File.insert(app=project.app, path=path, name=name, description=description)
+        .on_conflict(
+            conflict_target=[File.app, File.name, File.path], preserve=[], update={"description": description}
+        )
+        .execute()
+    )
 
 
 def save_feature(app_id, summary, messages, previous_step):
@@ -526,14 +545,18 @@ def save_feature(app_id, summary, messages, previous_step):
 def get_features_by_app_id(app_id):
     try:
         app = get_app(app_id)
-        features = DevelopmentSteps.select().where(
-            (DevelopmentSteps.app_id == app) &
-            (DevelopmentSteps.prompt_path.contains("feature_plan"))
-        ).order_by(DevelopmentSteps.created_at)
+        features = (
+            DevelopmentSteps.select()
+            .where((DevelopmentSteps.app_id == app) & (DevelopmentSteps.prompt_path.contains("feature_plan")))
+            .order_by(DevelopmentSteps.created_at)
+        )
         features_dict = [model_to_dict(feature) for feature in features]
 
         # return only 'summary' because we store all prompt_data to DB
-        return [{'summary': feature['prompt_data']['feature_description'], 'id': feature['id']} for feature in features_dict]
+        return [
+            {"summary": feature["prompt_data"]["feature_description"], "id": feature["id"]}
+            for feature in features_dict
+        ]
     except DoesNotExist:
         raise ValueError(f"No app with id: {app_id}")
 
@@ -568,13 +591,7 @@ def database_exists():
 def create_database():
     if DATABASE_TYPE == "postgres":
         # Connect to the default 'postgres' database to create a new database
-        conn = psycopg2.connect(
-            dbname='postgres',
-            user=DB_USER,
-            password=DB_PASSWORD,
-            host=DB_HOST,
-            port=DB_PORT
-        )
+        conn = psycopg2.connect(dbname="postgres", user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT)
         conn.autocommit = True
         cursor = conn.cursor()
 

@@ -13,11 +13,13 @@ def install_hook(project):
 JAVASCRIPT_REACT = {
     "path": "javascript_react",
     "description": "React web app using Vite devserver/bundler",
-    "summary": "\n".join([
-        "* Initial setup with Vite for fast development",
-        "* Basic project structure for React development",
-        "* Development server setup for hot reloading",
-        "* Minimal configuration to get started with React",
-    ]),
+    "summary": "\n".join(
+        [
+            "* Initial setup with Vite for fast development",
+            "* Basic project structure for React development",
+            "* Development server setup for hot reloading",
+            "* Minimal configuration to get started with React",
+        ]
+    ),
     "install_hook": install_hook,
 }

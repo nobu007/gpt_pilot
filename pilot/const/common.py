@@ -1,41 +1,40 @@
 import os
 
-
-APP_TYPES = ['Web App', 'Script', 'Mobile App', 'Chrome Extension']
+APP_TYPES = ["Web App", "Script", "Mobile App", "Chrome Extension"]
 ROLES = {
-    'product_owner': ['project_description', 'user_stories', 'user_tasks'],
-    'architect': ['architecture'],
-    'tech_lead': ['development_planning'],
-    'full_stack_developer': ['coding'],
-    'dev_ops': ['environment_setup'],
-    'code_monkey': ['coding']
+    "product_owner": ["project_description", "user_stories", "user_tasks"],
+    "architect": ["architecture"],
+    "tech_lead": ["development_planning"],
+    "full_stack_developer": ["coding"],
+    "dev_ops": ["environment_setup"],
+    "code_monkey": ["coding"],
 }
 STEPS = [
-    'project_description',
-    'user_stories',
-    'user_tasks',
-    'architecture',
-    'environment_setup',
-    'development_planning',
-    'coding',
-    'finished'
+    "project_description",
+    "user_stories",
+    "user_tasks",
+    "architecture",
+    "environment_setup",
+    "development_planning",
+    "coding",
+    "finished",
 ]
 
 DEFAULT_IGNORE_PATHS = [
-    '.git',
-    '.gpt-pilot',
-    '.idea',
-    '.vscode',
-    '.next',
-    '.DS_Store',
-    '__pycache__',
+    ".git",
+    ".gpt-pilot",
+    ".idea",
+    ".vscode",
+    ".next",
+    ".DS_Store",
+    "__pycache__",
     "site-packages",
-    'node_modules',
-    'package-lock.json',
-    'venv',
-    'dist',
-    'build',
-    'target',
+    "node_modules",
+    "package-lock.json",
+    "venv",
+    "dist",
+    "build",
+    "target",
     "*.min.js",
     "*.min.css",
     "*.svg",
@@ -43,13 +42,9 @@ DEFAULT_IGNORE_PATHS = [
     "*.log",
     "go.sum",
 ]
-IGNORE_PATHS = DEFAULT_IGNORE_PATHS + [
-    folder for folder
-    in os.environ.get('IGNORE_PATHS', '').split(',')
-    if folder
-]
+IGNORE_PATHS = DEFAULT_IGNORE_PATHS + [folder for folder in os.environ.get("IGNORE_PATHS", "").split(",") if folder]
 IGNORE_SIZE_THRESHOLD = 50000  # 50K+ files are ignored by default
-PROMPT_DATA_TO_IGNORE = {'directory_tree', 'name'}
+PROMPT_DATA_TO_IGNORE = {"directory_tree", "name"}
 
 
 EXAMPLE_PROJECT_DESCRIPTION = """
@@ -91,24 +86,18 @@ EXAMPLE_PROJECT_ARCHITECTURE = {
             "name": "Node.js",
             "description": "JavaScript runtime needed to run the React development tools and build the project.",
             "test": "node --version",
-            "required_locally": True
+            "required_locally": True,
         }
     ],
     "package_dependencies": [
-        {
-            "name": "react",
-            "description": "A JavaScript library for building user interfaces."
-        },
-        {
-            "name": "react-dom",
-            "description": "Serves as the entry point to the DOM and server renderers for React."
-        },
+        {"name": "react", "description": "A JavaScript library for building user interfaces."},
+        {"name": "react-dom", "description": "Serves as the entry point to the DOM and server renderers for React."},
         {
             "name": "bootstrap",
-            "description": "Frontend framework for developing responsive and mobile-first websites."
-        }
+            "description": "Frontend framework for developing responsive and mobile-first websites.",
+        },
     ],
-    "template": "javascript_react"
+    "template": "javascript_react",
 }
 
 EXAMPLE_PROJECT_PLAN = [

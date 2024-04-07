@@ -1,11 +1,10 @@
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from unittest.mock import patch, call
+from unittest.mock import call, patch
 
 import pytest
-
-from pilot.helpers.files import get_file_contents, get_directory_contents, update_file
+from pilot.helpers.files import get_directory_contents, get_file_contents, update_file
 
 
 @patch("pilot.helpers.files.open")
@@ -57,6 +56,7 @@ def test_update_file_with_encoded_content(source, expected_encoded):
     file.close()
     os.remove(file.name)
 
+
 @pytest.mark.parametrize(
     ("encoded", "expected"),
     [
@@ -81,6 +81,7 @@ def test_get_file_contents(encoded, expected):
     }
     file.close()
     os.remove(file.name)
+
 
 @patch("pilot.helpers.files.open")
 @patch("pilot.helpers.files.os")
@@ -119,21 +120,21 @@ def test_get_directory_contents_mocked(mock_IgnoreMatcher, mock_os, mock_open):
         {
             "content": "file.txt",
             "full_path": np("/fake/root/file.txt"),
-            'lines_of_code': 1,
+            "lines_of_code": 1,
             "name": "file.txt",
             "path": "",
         },
         {
             "content": "foo.txt - 無為",
             "full_path": np("/fake/root/foo/foo.txt"),
-            'lines_of_code': 1,
+            "lines_of_code": 1,
             "name": "foo.txt",
             "path": "foo",
         },
         {
             "content": b"\xff\xff\xff",
             "full_path": np("/fake/root/bar/bar.txt"),
-            'lines_of_code': 1,
+            "lines_of_code": 1,
             "name": "bar.txt",
             "path": "bar",
         },
@@ -154,11 +155,7 @@ def test_get_directory_contents_live():
     assert "test_get_directory_contents_live()" in this_file["content"]
 
     # Check that the binary file was ignored
-    image_files = [
-        f
-        for f in files
-        if f["path"] == "helpers" and f["name"] == "testlogo.png"
-    ]
+    image_files = [f for f in files if f["path"] == "helpers" and f["name"] == "testlogo.png"]
     assert image_files == []
 
     # Check that the ignore list works

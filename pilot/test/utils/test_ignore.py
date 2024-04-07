@@ -1,9 +1,10 @@
-from unittest.mock import patch
-import pytest
+from os.path import dirname, join, sep
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
+import pytest
 from utils.ignore import IgnoreMatcher
-from os.path import sep, join, dirname
+
 
 @pytest.mark.parametrize(
     ("path", "expected"),
@@ -27,7 +28,7 @@ from os.path import sep, join, dirname
         ("server.js", False),
         (join(dirname(__file__), "node_modules"), True),
         (join(dirname(__file__), "subdirectory", "node_modules"), True),
-    ]
+    ],
 )
 @patch("utils.ignore.os.path.getsize")
 @patch("utils.ignore.os.path.isfile")
@@ -48,7 +49,7 @@ def test_default_ignore(mock_open, mock_isfile, mock_getsize, path, expected):
         ("*.py[co]", "test.py", False),
         ("*.min.js", f"public{sep}js{sep}script.min.js", True),
         ("*.min.js", f"public{sep}js{sep}min.js", False),
-    ]
+    ],
 )
 @patch("utils.ignore.os.path.getsize")
 @patch("utils.ignore.os.path.isfile")
@@ -67,7 +68,7 @@ def test_additional_ignore(mock_open, mock_isfile, mock_getsize, ignore, path, e
         ("jquery.js", "jquery.js", True),
         ("jquery.js", f"otherdir{sep}jquery.js", True),
         ("jquery.js", f"{sep}test{sep}jquery.js", True),
-    ]
+    ],
 )
 def test_full_path(ignore, path, expected):
     matcher = IgnoreMatcher([ignore], root_path=f"{sep}test")
@@ -77,9 +78,9 @@ def test_full_path(ignore, path, expected):
 @pytest.mark.parametrize(
     ("size", "expected"),
     [
-        (1024*1024, True),  # 1MB
-        (49999, False),    # one byte less than the threshold
-    ]
+        (1024 * 1024, True),  # 1MB
+        (49999, False),  # one byte less than the threshold
+    ],
 )
 @patch("utils.ignore.os.path.isfile")
 @patch("utils.ignore.os.path.getsize")
@@ -99,8 +100,8 @@ def test_ignore_large_files(mock_getsize, mock_isfile, size, expected):
     ("content", "expected"),
     [
         (("hello world ŠĐŽČĆ").encode("utf-8"), False),  # text
-        (b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52", True), # image
-    ]
+        (b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52", True),  # image
+    ],
 )
 def test_ignore_binary_files(content, expected):
     with TemporaryDirectory() as tmpdir:
@@ -112,6 +113,7 @@ def test_ignore_binary_files(content, expected):
         # Check both relative and absolute paths
         assert matcher.ignore("testfile.txt") is expected
         assert matcher.ignore(path) is expected
+
 
 @patch("utils.ignore.os.path.isfile")
 @patch("utils.ignore.os.path.getsize")

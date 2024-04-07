@@ -4,17 +4,17 @@ import subprocess
 import uuid
 from os.path import sep
 
-from utils.style import color_yellow, color_yellow_bold, color_red_bold
+from const.llm import END_RESPONSE
 from database.database import save_development_step
-from helpers.exceptions import TokenLimitError, ApiError
-from utils.function_calling import parse_agent_response, FunctionCallSet
-from utils.llm_connection import create_gpt_chat_completion
-from utils.utils import get_prompt, get_sys_message, capitalize_first_word_with_underscores
+from helpers.cli import running_processes
+from helpers.exceptions import ApiError, TokenLimitError
 from logger.logger import logger
 from prompts.prompts import ask_user
-from const.llm import END_RESPONSE
-from helpers.cli import running_processes
+from utils.function_calling import FunctionCallSet, parse_agent_response
+from utils.llm_connection import create_gpt_chat_completion
+from utils.style import color_red_bold, color_yellow, color_yellow_bold
 from utils.telemetry import telemetry
+from utils.utils import capitalize_first_word_with_underscores, get_prompt, get_sys_message
 
 
 class AgentConvo:
@@ -36,11 +36,14 @@ class AgentConvo:
 
         # add system message
         system_message = get_sys_message(self.agent.role, self.agent.project.args)
-        logger.info('\n>>>>>>>>>> System Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-                    system_message['content'])
+        logger.info(
+            "\n>>>>>>>>>> System Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", system_message["content"]
+        )
         self.messages.append(system_message)
 
-    def send_message(self, prompt_path=None, prompt_data=None, function_calls: FunctionCallSet = None, should_log_message=True):
+    def send_message(
+        self, prompt_path=None, prompt_data=None, function_calls: FunctionCallSet = None, should_log_message=True
+    ):
         """
         Sends a message in the conversation.
 
@@ -57,22 +60,27 @@ class AgentConvo:
 
         # TODO: move this if block (and the other below) to Developer agent - https://github.com/Pythagora-io/gpt-pilot/issues/91#issuecomment-1751964079
         # check if we already have the LLM response saved
-        if hasattr(self.agent, 'save_dev_steps') and self.agent.save_dev_steps:
+        if hasattr(self.agent, "save_dev_steps") and self.agent.save_dev_steps:
             self.agent.project.llm_req_num += 1
 
         self.agent.project.finish_loading()
 
         try:
             self.replace_files()
-            response = create_gpt_chat_completion(self.messages, self.high_level_step, self.agent.project,
-                                                  function_calls=function_calls, prompt_data=prompt_data,
-                                                  temperature=self.temperature)
+            response = create_gpt_chat_completion(
+                self.messages,
+                self.high_level_step,
+                self.agent.project,
+                function_calls=function_calls,
+                prompt_data=prompt_data,
+                temperature=self.temperature,
+            )
         except TokenLimitError as e:
             save_development_step(self.agent.project, prompt_path, prompt_data, self.messages, {"text": ""}, str(e))
             raise e
 
         # TODO: move this code to Developer agent - https://github.com/Pythagora-io/gpt-pilot/issues/91#issuecomment-1751964079
-        if hasattr(self.agent, 'save_dev_steps') and self.agent.save_dev_steps:
+        if hasattr(self.agent, "save_dev_steps") and self.agent.save_dev_steps:
             save_development_step(self.agent.project, prompt_path, prompt_data, self.messages, response)
 
         # TODO handle errors from OpenAI
@@ -82,7 +90,7 @@ class AgentConvo:
             # This should never happen since we're raising ApiError in create_gpt_chat_completion
             # Leaving this in place in case there's a case where this can still happen
             logger.error('Aborting with "OpenAI API error happened"')
-            print(color_red_bold('There was an error talking to OpenAI API. Please try again later.'))
+            print(color_red_bold("There was an error talking to OpenAI API. Please try again later."))
             payload_size_kb = len(json.dumps(self.messages)) // 1000
             raise ApiError(f"Unknown API error (prompt: {prompt_path}, request size: {payload_size_kb}KB)")
 
@@ -90,15 +98,22 @@ class AgentConvo:
             response = parse_agent_response(response, function_calls)
         except (KeyError, json.JSONDecodeError) as err:
             logger.error("Error while parsing LLM response: {err.__class__.__name__}: {err}")
-            print(color_red_bold(f'There was an error parsing LLM response: \"{err.__class__.__name__}: {err}\". Please try again later.'))
-            raise ApiError(f"Error parsing LLM response: {err.__class__.__name__}: {err}: Response text: {response}") from err
+            print(
+                color_red_bold(
+                    f'There was an error parsing LLM response: "{err.__class__.__name__}: {err}". Please try again later.'
+                )
+            )
+            raise ApiError(
+                f"Error parsing LLM response: {err.__class__.__name__}: {err}: Response text: {response}"
+            ) from err
 
         message_content = self.format_message_content(response, function_calls)
 
         # TODO we need to specify the response when there is a function called
         # TODO maybe we can have a specific function that creates the GPT response from the function call
-        logger.info('\n>>>>>>>>>> Assistant Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>',
-                    message_content)
+        logger.info(
+            "\n>>>>>>>>>> Assistant Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", message_content
+        )
         self.messages.append({"role": "assistant", "content": message_content})
         if should_log_message:
             self.log_message(message_content)
@@ -151,15 +166,17 @@ class AgentConvo:
 
         # Continue conversation until GPT response equals END_RESPONSE
         while response != END_RESPONSE:
-            user_message = ask_user(self.agent.project,
-                                    'Do you want to add anything else? If not, just press ENTER.',
-                                    hint=response,
-                                    require_some_input=False)
+            user_message = ask_user(
+                self.agent.project,
+                "Do you want to add anything else? If not, just press ENTER.",
+                hint=response,
+                require_some_input=False,
+            )
 
             if user_message == "":
                 accepted_messages.append(response)
 
-            logger.info('\n>>>>>>>>>> User Message >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', user_message)
+            logger.info("\n>>>>>>>>>> User Message >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", user_message)
             self.messages.append({"role": "user", "content": user_message})
             response = self.send_message(None, None, function_calls)
 
@@ -181,7 +198,7 @@ class AgentConvo:
     def replace_files(self):
         files = self.agent.project.get_all_coded_files()
         for msg in self.messages:
-            if msg['role'] == 'user':
+            if msg["role"] == "user":
                 new_content = self.replace_files_in_one_message(files, msg["content"])
                 if new_content != msg["content"]:
                     msg["content"] = new_content
@@ -191,7 +208,7 @@ class AgentConvo:
         replacement_lines = ["\n---START_OF_FILES---"]
         for file in files:
             path = f"{file['path']}{sep}{file['name']}"
-            content = file['content']
+            content = file["content"]
             replacement_lines.append(f"**{path}** ({ file['lines_of_code'] } lines of code):\n```\n{content}\n```\n")
         replacement_lines.append("---END_OF_FILES---\n")
         replacement = "\n".join(replacement_lines)
@@ -200,7 +217,7 @@ class AgentConvo:
             return replacement
 
         pattern = r"\n---START_OF_FILES---\n(.*?)\n---END_OF_FILES---\n"
-        return re.sub(pattern, replace_cb, message, flags=re.MULTILINE|re.DOTALL)
+        return re.sub(pattern, replace_cb, message, flags=re.MULTILINE | re.DOTALL)
 
     @staticmethod
     def escape_specials(s):
@@ -214,18 +231,18 @@ class AgentConvo:
             # todo check if needed '\\a',  # ASCII Bell (BEL)
             # todo check if needed '\\b',  # ASCII Backspace (BS) - note: different from regex \b
             # todo check if needed '\\f',  # ASCII Formfeed (FF)
-            '\\n',  # ASCII Linefeed (LF)
+            "\\n",  # ASCII Linefeed (LF)
             # todo check if needed '\\r',  # ASCII Carriage Return (CR)
-            '\\t',  # ASCII Horizontal Tab (TAB)
+            "\\t",  # ASCII Horizontal Tab (TAB)
             # todo check if needed '\\v'  # ASCII Vertical Tab (VT)
         ]
 
         for seq in sequences_to_preserve:
-            s = s.replace('\\\\' + seq[-1], seq)
+            s = s.replace("\\\\" + seq[-1], seq)
         return s
 
     def convo_length(self):
-        return len([msg for msg in self.messages if msg['role'] != 'system'])
+        return len([msg for msg in self.messages if msg["role"] != "system"])
 
     def log_message(self, content):
         """
@@ -236,45 +253,48 @@ class AgentConvo:
         """
         print_msg = capitalize_first_word_with_underscores(self.high_level_step)
         if self.log_to_user:
-            if self.agent.project.checkpoints['last_development_step'] is not None:
+            if self.agent.project.checkpoints["last_development_step"] is not None:
                 dev_step_msg = f'\nDev step {str(self.agent.project.checkpoints["last_development_step"]["id"])}\n'
                 if not self.agent.project.check_ipc():
-                    print(color_yellow_bold(dev_step_msg), end='')
+                    print(color_yellow_bold(dev_step_msg), end="")
                 logger.info(dev_step_msg)
             try:
-                print(f"\n{content}\n", type='local')
+                print(f"\n{content}\n", type="local")
             except Exception:  # noqa
                 # Workaround for Windows encoding crash: https://github.com/Pythagora-io/gpt-pilot/issues/509
-                safe_content = content.encode('ascii', 'ignore').decode('ascii')
-                print(f"\n{safe_content}\n", type='local')
+                safe_content = content.encode("ascii", "ignore").decode("ascii")
+                print(f"\n{safe_content}\n", type="local")
 
         logger.info(f"{print_msg}: {content}\n")
 
     def to_context_prompt(self):
-        logger.info(f'to_context_prompt({self.agent.project.current_step})')
+        logger.info(f"to_context_prompt({self.agent.project.current_step})")
 
         # TODO: get dependencies & versions from the project (package.json, requirements.txt, pom.xml, etc.)
         # Ideally, the LLM could do this, and we update it on load & whenever the file changes
         # ...or LLM generates a script for `.gpt-pilot/get_dependencies` that we run
         # https://github.com/Pythagora-io/gpt-pilot/issues/189
-        return get_prompt('development/context.prompt', {
-            'directory_tree': self.agent.project.get_directory_tree(),
-            'running_processes': running_processes,
-        })
+        return get_prompt(
+            "development/context.prompt",
+            {
+                "directory_tree": self.agent.project.get_directory_tree(),
+                "running_processes": running_processes,
+            },
+        )
 
     def to_playground(self):
         # Internal function to help debugging in OpenAI Playground, not to be used in production
-        with open('const/convert_to_playground_convo.js', 'r', encoding='utf-8') as file:
+        with open("const/convert_to_playground_convo.js", "r", encoding="utf-8") as file:
             content = file.read()
-        process = subprocess.Popen('pbcopy', stdin=subprocess.PIPE)
-        process.communicate(content.replace('{{messages}}', str(self.messages)).encode('utf-8'))
+        process = subprocess.Popen("pbcopy", stdin=subprocess.PIPE)
+        process.communicate(content.replace("{{messages}}", str(self.messages)).encode("utf-8"))
 
     def remove_last_x_messages(self, x):
-        logger.info('removing last %d messages: %s', x, self.messages[-x:])
+        logger.info("removing last %d messages: %s", x, self.messages[-x:])
         self.messages = self.messages[:-x]
 
     def construct_and_add_message_from_prompt(self, prompt_path, prompt_data):
         if prompt_path is not None and prompt_data is not None:
             prompt = get_prompt(prompt_path, prompt_data)
-            logger.info('\n>>>>>>>>>> User Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>', prompt)
+            logger.info("\n>>>>>>>>>> User Prompt >>>>>>>>>>\n%s\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>", prompt)
             self.messages.append({"role": "user", "content": prompt})

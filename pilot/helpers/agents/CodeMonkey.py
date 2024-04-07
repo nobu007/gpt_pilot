@@ -1,15 +1,14 @@
 import os.path
 import re
-from typing import Optional
-from traceback import format_exc
 from difflib import unified_diff
+from traceback import format_exc
+from typing import Optional
 
-from helpers.AgentConvo import AgentConvo
-from helpers.Agent import Agent
-from helpers.files import get_file_contents
 from const.function_calls import GET_FILE_TO_MODIFY, REVIEW_CHANGES
+from helpers.Agent import Agent
+from helpers.AgentConvo import AgentConvo
+from helpers.files import get_file_contents
 from logger.logger import logger
-
 from utils.exit import trace_code_event
 from utils.telemetry import telemetry
 
@@ -21,18 +20,19 @@ PATCH_HEADER_PATTERN = re.compile(r"^@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@")
 
 MAX_REVIEW_RETRIES = 2
 
+
 class CodeMonkey(Agent):
     save_dev_steps = True
 
     def __init__(self, project):
-        super().__init__('code_monkey', project)
+        super().__init__("code_monkey", project)
 
     def get_original_file(
-            self,
-            code_changes_description: str,
-            step: dict[str, str],
-            files: list[dict],
-        ) -> tuple[str, str]:
+        self,
+        code_changes_description: str,
+        step: dict[str, str],
+        files: list[dict],
+    ) -> tuple[str, str]:
         """
         Get the original file content and name.
 
@@ -43,22 +43,26 @@ class CodeMonkey(Agent):
         """
         # If we're called as a result of debugging, we don't have the name/path of the file
         # to modify so we need to figure that out first.
-        if 'path' not in step or 'name' not in step:
+        if "path" not in step or "name" not in step:
             file_to_change = self.identify_file_to_change(code_changes_description, files)
-            step['path'] = os.path.dirname(file_to_change)
-            step['name'] = os.path.basename(file_to_change)
+            step["path"] = os.path.dirname(file_to_change)
+            step["name"] = os.path.basename(file_to_change)
 
-        rel_path, abs_path = self.project.get_full_file_path(step['path'], step['name'])
+        rel_path, abs_path = self.project.get_full_file_path(step["path"], step["name"])
 
         for f in files:
             # Take into account that step path might start with "/"
-            if (f['path'] == step['path'] or (os.path.sep + f['path'] == step['path'])) and f['name'] == step['name'] and f['content']:
-                file_content = f['content']
+            if (
+                (f["path"] == step["path"] or (os.path.sep + f["path"] == step["path"]))
+                and f["name"] == step["name"]
+                and f["content"]
+            ):
+                file_content = f["content"]
                 break
         else:
             # If we didn't have the match (because of incorrect or double use of path separators or similar), fallback to directly loading the file
             try:
-                file_content = get_file_contents(abs_path, self.project.root_path)['content']
+                file_content = get_file_contents(abs_path, self.project.root_path)["content"]
                 if isinstance(file_content, bytes):
                     # We should never want to change a binary file, but if we do end up here, let's not crash
                     file_content = "... <binary file, content omitted> ..."
@@ -66,7 +70,7 @@ class CodeMonkey(Agent):
                 # File doesn't exist, we probably need to create a new one
                 file_content = ""
 
-        file_name = os.path.join(rel_path, step['name'])
+        file_name = os.path.join(rel_path, step["name"])
         return file_name, file_content
 
     def implement_code_changes(
@@ -82,17 +86,17 @@ class CodeMonkey(Agent):
         """
         previous_temperature = convo.temperature
         convo.temperature = 0.0
-        code_change_description = step.get('code_change_description')
+        code_change_description = step.get("code_change_description")
 
         files = self.project.get_all_coded_files()
         file_name, file_content = self.get_original_file(code_change_description, step, files)
 
-        print('', type='verbose', category='agent:code-monkey')
+        print("", type="verbose", category="agent:code-monkey")
 
         if file_content:
-            print(f'Updating existing file {file_name}:')
+            print(f"Updating existing file {file_name}:")
         else:
-            print(f'Creating new file {file_name}:')
+            print(f"Creating new file {file_name}:")
 
         # Get the new version of the file
         content = self.replace_complete_file(
@@ -107,20 +111,25 @@ class CodeMonkey(Agent):
                 # There are no changes or there was problem talking with the LLM, we're done here
                 break
 
-            print('Sending code for review...', type='verbose', category='agent:code-monkey')
-            print('', type='verbose', category='agent:reviewer')
-            content, rework_feedback = self.review_change(convo, code_change_description, file_name, file_content, content)
-            print('Review finished. Continuing...', type='verbose', category='agent:code-monkey')
+            print("Sending code for review...", type="verbose", category="agent:code-monkey")
+            print("", type="verbose", category="agent:reviewer")
+            content, rework_feedback = self.review_change(
+                convo, code_change_description, file_name, file_content, content
+            )
+            print("Review finished. Continuing...", type="verbose", category="agent:code-monkey")
             if not rework_feedback:
                 # No rework needed, we're done here
                 break
 
-            print('', type='verbose', category='agent:code-monkey')
-            content = convo.send_message('development/review_feedback.prompt', {
-                "content": content,
-                "original_content": file_content,
-                "rework_feedback": rework_feedback,
-            })
+            print("", type="verbose", category="agent:code-monkey")
+            content = convo.send_message(
+                "development/review_feedback.prompt",
+                {
+                    "content": content,
+                    "original_content": file_content,
+                    "rework_feedback": rework_feedback,
+                },
+            )
             if content:
                 content = self.remove_backticks(content)
             convo.remove_last_x_messages(2)
@@ -130,22 +139,18 @@ class CodeMonkey(Agent):
             if not self.project.skip_steps:
                 delta_lines = len(content.splitlines()) - len(file_content.splitlines())
                 telemetry.inc("created_lines", delta_lines)
-            self.project.save_file({
-                'path': step['path'],
-                'name': step['name'],
-                'content': content,
-            })
+            self.project.save_file(
+                {
+                    "path": step["path"],
+                    "name": step["name"],
+                    "content": content,
+                }
+            )
 
         convo.temperature = previous_temperature
         return convo
 
-    def replace_complete_file(
-        self,
-        convo: AgentConvo,
-        file_content: str,
-        file_name: str,
-        files: list[dict]
-    ) -> str:
+    def replace_complete_file(self, convo: AgentConvo, file_content: str, file_name: str, files: list[dict]) -> str:
         """
         As a fallback, replace the complete file content.
 
@@ -161,16 +166,19 @@ class CodeMonkey(Agent):
 
         Note: if even this fails for any reason, the original content is returned instead.
         """
-        prev_message = convo.messages[-1]['content']
+        prev_message = convo.messages[-1]["content"]
         prev_message_prefix = " ".join(prev_message.split()[:5])
         prev_message_postfix = " ".join(prev_message.split()[-5:])
-        llm_response = convo.send_message('development/implement_changes.prompt', {
-            "file_content": file_content,
-            "file_name": file_name,
-            "files": files,
-            "prev_message_prefix": prev_message_prefix,
-            "prev_message_postfix": prev_message_postfix,
-        })
+        llm_response = convo.send_message(
+            "development/implement_changes.prompt",
+            {
+                "file_content": file_content,
+                "file_name": file_name,
+                "files": files,
+                "prev_message_prefix": prev_message_prefix,
+                "prev_message_postfix": prev_message_postfix,
+            },
+        )
         convo.remove_last_x_messages(2)
         return self.remove_backticks(llm_response)
 
@@ -197,19 +205,18 @@ class CodeMonkey(Agent):
         :return: file to change
         """
         convo = AgentConvo(self)
-        llm_response = convo.send_message('development/identify_files_to_change.prompt', {
-            "code_changes_description": code_changes_description,
-            "files": files,
-        }, GET_FILE_TO_MODIFY)
+        llm_response = convo.send_message(
+            "development/identify_files_to_change.prompt",
+            {
+                "code_changes_description": code_changes_description,
+                "files": files,
+            },
+            GET_FILE_TO_MODIFY,
+        )
         return llm_response["file"]
 
     def review_change(
-        self,
-        convo: AgentConvo,
-        instructions: str,
-        file_name: str,
-        old_content: str,
-        new_content: str
+        self, convo: AgentConvo, instructions: str, file_name: str, old_content: str, new_content: str
     ) -> tuple[str, str]:
         """
         Review changes that were applied to the file.
@@ -229,12 +236,16 @@ class CodeMonkey(Agent):
 
         hunks = self.get_diff_hunks(file_name, old_content, new_content)
 
-        llm_response = convo.send_message('development/review_changes.prompt', {
-            "instructions": instructions,
-            "file_name": file_name,
-            "old_content": old_content,
-            "hunks": hunks,
-        }, REVIEW_CHANGES)
+        llm_response = convo.send_message(
+            "development/review_changes.prompt",
+            {
+                "instructions": instructions,
+                "file_name": file_name,
+                "old_content": old_content,
+                "hunks": hunks,
+            },
+            REVIEW_CHANGES,
+        )
         messages_to_remove = 2
 
         for i in range(MAX_REVIEW_RETRIES):
@@ -262,9 +273,8 @@ class CodeMonkey(Agent):
 
             # Max two retries; if the reviewer still hasn't reviewed all hunks, we'll just use the entire new content
             llm_response = convo.send_message(
-                'utils/llm_response_error.prompt', {
-                    "error": error
-                },
+                "utils/llm_response_error.prompt",
+                {"error": error},
                 REVIEW_CHANGES,
             )
             messages_to_remove += 2
@@ -275,13 +285,17 @@ class CodeMonkey(Agent):
 
         convo.remove_last_x_messages(messages_to_remove)
 
-        hunks_to_apply = [ h for i, h in enumerate(hunks) if i in ids_to_apply ]
+        hunks_to_apply = [h for i, h in enumerate(hunks) if i in ids_to_apply]
         diff_log = f"--- {file_name}\n+++ {file_name}\n" + "\n".join(hunks_to_apply)
 
-        hunks_to_rework = [ (i, h) for i, h in enumerate(hunks) if i in ids_to_rework ]
-        review_log = "\n\n".join([
-            f"## Change\n```{hunk}```\nReviewer feedback:\n{reasons[i]}" for (i, hunk) in hunks_to_rework
-        ]) + "\n\nReview notes:\n" + llm_response["review_notes"]
+        hunks_to_rework = [(i, h) for i, h in enumerate(hunks) if i in ids_to_rework]
+        review_log = (
+            "\n\n".join(
+                [f"## Change\n```{hunk}```\nReviewer feedback:\n{reasons[i]}" for (i, hunk) in hunks_to_rework]
+            )
+            + "\n\nReview notes:\n"
+            + llm_response["review_notes"]
+        )
 
         if len(hunks_to_apply) == len(hunks):
             print("Applying entire change")
@@ -290,7 +304,9 @@ class CodeMonkey(Agent):
 
         elif len(hunks_to_apply) == 0:
             if hunks_to_rework:
-                print(f"Requesting rework for {len(hunks_to_rework)} changes with reason: {llm_response['review_notes']}")
+                print(
+                    f"Requesting rework for {len(hunks_to_rework)} changes with reason: {llm_response['review_notes']}"
+                )
                 logger.info(f"Requesting rework for {len(hunks_to_rework)} changes to {file_name} (0 hunks to apply)")
                 return old_content, review_log
             else:
@@ -330,7 +346,7 @@ class CodeMonkey(Agent):
         diff_gen = unified_diff(from_lines, to_lines, fromfile=from_name, tofile=to_name)
         diff_txt = "".join(diff_gen)
 
-        hunks = re.split(r'\n@@', diff_txt, re.MULTILINE)
+        hunks = re.split(r"\n@@", diff_txt, re.MULTILINE)
         result = []
         for i, h in enumerate(hunks):
             # Skip the prologue (file names)
@@ -341,13 +357,7 @@ class CodeMonkey(Agent):
             result.append("\n".join(txt))
         return result
 
-    def apply_diff(
-        self,
-        file_name: str,
-        old_content: str,
-        hunks: list[str],
-        fallback: str
-    ):
+    def apply_diff(self, file_name: str, old_content: str, hunks: list[str], fallback: str):
         """
         Apply the diff to the original file content.
 
@@ -362,12 +372,16 @@ class CodeMonkey(Agent):
         :param hunks: change hunks from the unified diff
         :param fallback: proposed new file content (with all the changes applied)
         """
-        diff = "\n".join(
-            [
-                f"--- {file_name}",
-                f"+++ {file_name}",
-            ] + hunks
-        ) + "\n"
+        diff = (
+            "\n".join(
+                [
+                    f"--- {file_name}",
+                    f"+++ {file_name}",
+                ]
+                + hunks
+            )
+            + "\n"
+        )
         try:
             fixed_content = self._apply_patch(old_content, diff)
         except Exception as e:
@@ -376,13 +390,7 @@ class CodeMonkey(Agent):
             print(f"Error applying diff: {e}; hoping all changes are valid")
             trace_code_event(
                 "patch-apply-error",
-                {
-                    "file": file_name,
-                    "error": str(e),
-                    "traceback": format_exc(),
-                    "original": old_content,
-                    "diff": diff
-                }
+                {"file": file_name, "error": str(e), "traceback": format_exc(), "original": old_content, "diff": diff},
             )
             return fallback
 
@@ -402,11 +410,11 @@ class CodeMonkey(Agent):
         original_lines = original.splitlines(True)
         patch_lines = patch.splitlines(True)
 
-        updated_text = ''
+        updated_text = ""
         index_original = start_line = 0
 
         # Choose which group of the regex to use based on the revert flag
-        match_index, line_sign = (1, '+') if not revert else (3, '-')
+        match_index, line_sign = (1, "+") if not revert else (3, "-")
 
         # Skip header lines of the patch
         while index_original < len(patch_lines) and patch_lines[index_original].startswith(("---", "+++")):
@@ -417,17 +425,17 @@ class CodeMonkey(Agent):
             if not match:
                 raise Exception("Bad patch -- regex mismatch [line " + str(index_original) + "]")
 
-            line_number = int(match.group(match_index)) - 1 + (match.group(match_index + 1) == '0')
+            line_number = int(match.group(match_index)) - 1 + (match.group(match_index + 1) == "0")
 
             if start_line > line_number or line_number > len(original_lines):
                 raise Exception("Bad patch -- bad line number [line " + str(index_original) + "]")
 
-            updated_text += ''.join(original_lines[start_line:line_number])
+            updated_text += "".join(original_lines[start_line:line_number])
             start_line = line_number
             index_original += 1
 
-            while index_original < len(patch_lines) and patch_lines[index_original][0] != '@':
-                if index_original + 1 < len(patch_lines) and patch_lines[index_original + 1][0] == '\\':
+            while index_original < len(patch_lines) and patch_lines[index_original][0] != "@":
+                if index_original + 1 < len(patch_lines) and patch_lines[index_original + 1][0] == "\\":
                     line_content = patch_lines[index_original][:-1]
                     index_original += 2
                 else:
@@ -435,9 +443,9 @@ class CodeMonkey(Agent):
                     index_original += 1
 
                 if line_content:
-                    if line_content[0] == line_sign or line_content[0] == ' ':
+                    if line_content[0] == line_sign or line_content[0] == " ":
                         updated_text += line_content[1:]
-                    start_line += (line_content[0] != line_sign)
+                    start_line += line_content[0] != line_sign
 
-        updated_text += ''.join(original_lines[start_line:])
+        updated_text += "".join(original_lines[start_line:])
         return updated_text

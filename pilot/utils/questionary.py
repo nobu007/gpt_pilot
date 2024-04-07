@@ -1,9 +1,10 @@
 import platform
-import questionary
 import sys
+
+import questionary
 from database.database import save_user_input
-from utils.style import style_config
 from utils.print import remove_ansi_codes
+from utils.style import style_config
 
 
 def styled_select(*args, **kwargs):
@@ -23,7 +24,7 @@ def styled_text(project, question, ignore_user_input_count=False, style=None, hi
         project.user_inputs_count += 1
 
     if project is not None and project.check_ipc():
-        response = print(question, type='user_input_request')
+        response = print(question, type="user_input_request")
     else:
         used_style = style if style is not None else style_config.get_style()
         question = remove_ansi_codes(question)  # Colorama and questionary are not compatible and styling doesn't work
@@ -34,31 +35,37 @@ def styled_text(project, question, ignore_user_input_count=False, style=None, hi
         save_user_input(project, question, response, hint)
 
     if project is not None and not project.check_ipc():
-        print('\n\n', end='')
+        print("\n\n", end="")
     return response
 
 
 def get_user_feedback():
-    return questionary.text('How did GPT Pilot do? Were you able to create any app that works? '
-                            'Please write any feedback you have or just press ENTER to exit: ',
-                            style=style_config.get_style()).unsafe_ask()
+    return questionary.text(
+        "How did GPT Pilot do? Were you able to create any app that works? "
+        "Please write any feedback you have or just press ENTER to exit: ",
+        style=style_config.get_style(),
+    ).unsafe_ask()
 
 
 def ask_user_to_store_init_prompt():
-    return questionary.text('We would appreciate if you let us store your initial app prompt. '
-                            'If you are OK with that, please just press ENTER',
-                            style=style_config.get_style()).unsafe_ask()
+    return questionary.text(
+        "We would appreciate if you let us store your initial app prompt. "
+        "If you are OK with that, please just press ENTER",
+        style=style_config.get_style(),
+    ).unsafe_ask()
 
 
 def flush_input():
     """Flush the input buffer, discarding all that's in the buffer."""
     try:
-        if platform.system() == 'Windows':
+        if platform.system() == "Windows":
             import msvcrt
+
             while msvcrt.kbhit():
                 msvcrt.getch()
         else:
             import termios
+
             termios.tcflush(sys.stdin, termios.TCIOFLUSH)
     except (ImportError, OSError):
         pass

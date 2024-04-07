@@ -1,12 +1,13 @@
-from fnmatch import fnmatch
 import os.path
+from fnmatch import fnmatch
 from typing import Optional
 
 from const.common import IGNORE_PATHS, IGNORE_SIZE_THRESHOLD
 
 
 class IgnoreMatcher:
-    def __init__(self,
+    def __init__(
+        self,
         ignore_paths: Optional[list[str]] = None,
         *,
         root_path: Optional[None] = None,
@@ -100,7 +101,7 @@ class IgnoreMatcher:
             return False
 
         try:
-            open(path, "r", encoding="utf-8").read(128*1024)
+            open(path, "r", encoding="utf-8").read(128 * 1024)
             return False
         except:  # noqa
             # If we can't open the file for any reason (eg. PermissionError), it's

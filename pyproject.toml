@@ -1,0 +1,49 @@
+[tool.pysen]
+version = "0.10"
+
+[tool.pysen.lint]
+enable_black = true
+enable_flake8 = true
+enable_isort = true
+enable_mypy = true
+line_length = 119
+mypy_preset = "strict"
+py_version = "PY310"
+
+[[tool.pysen.lint.mypy_targets]]
+paths = ["."]
+
+[tool.flake8]
+max-line-length = 119
+
+[tool.pylint.messages_control]
+disable = [
+  "cyclic-import",
+  "fixme",
+  "format",
+  "import-error",
+  "invalid-name", # TODO: Add naming guidance and enable this check.
+  "line-too-long",
+  "missing-docstring",
+  "no-else-return",
+  "no-member",
+  "no-name-in-module",
+  "too-few-public-methods",
+  "too-many-arguments",
+  "too-many-instance-attributes",
+  "too-many-lines",
+  "too-many-locals",
+  "too-many-public-methods",
+  "too-many-return-statements",
+  "useless-return",
+  "wrong-import-order",
+]
+
+[tool.isort]
+ensure_newline_before_comments = true
+force_grid_wrap = 0
+include_trailing_comma = true
+line_length = 119
+multi_line_output = 3
+profile = "black"
+use_parentheses = true

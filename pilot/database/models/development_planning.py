@@ -5,10 +5,10 @@ from playhouse.postgres_ext import BinaryJSONField
 
 
 class DevelopmentPlanning(ProgressStep):
-    if DATABASE_TYPE == 'postgres':
+    if DATABASE_TYPE == "postgres":
         development_plan = BinaryJSONField()
     else:
         development_plan = JSONField()  # Custom JSON field for SQLite
 
     class Meta:
-        table_name = 'development_planning'
+        table_name = "development_planning"

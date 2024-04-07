@@ -1,15 +1,15 @@
-from logging import getLogger
-from pathlib import Path
 import sys
 import time
 import traceback
+from logging import getLogger
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import requests
-
-from .settings import settings, version, config_path
 from const.telemetry import LARGE_REQUEST_THRESHOLD, SLOW_REQUEST_THRESHOLD
+
+from .settings import config_path, settings, version
 
 log = getLogger(__name__)
 
@@ -63,8 +63,7 @@ class Telemetry:
 
         if self.enabled:
             log.debug(
-                f"Anonymous telemetry enabled (id={self.telemetry_id}), "
-                f"configure or disable it in {config_path}"
+                f"Anonymous telemetry enabled (id={self.telemetry_id}), " f"configure or disable it in {config_path}"
             )
 
     def clear_data(self):
@@ -96,6 +95,7 @@ class Telemetry:
         if sys.platform == "linux":
             try:
                 import distro
+
                 self.data["linux_distro"] = distro.name(pretty=True)
             except Exception as err:
                 log.debug(f"Error getting Linux distribution info: {err}", exc_info=True)
@@ -105,48 +105,50 @@ class Telemetry:
         """
         Reset telemetry counters while keeping the base data.
         """
-        self.data.update({
-            # Number of LLM requests made
-            "num_llm_requests": 0,
-            # Number of LLM requests that resulted in an error
-            "num_llm_errors": 0,
-            # Number of tokens used for LLM requests
-            "num_llm_tokens": 0,
-            # Number of development steps
-            "num_steps": 0,
-            # Number of commands run during development
-            "num_commands": 0,
-            # Number of times a human input was required during development
-            "num_inputs": 0,
-            # Number of files in the project
-            "num_files": 0,
-            # Total number of lines in the project
-            "num_lines": 0,
-            # Number of tasks started during development
-            "num_tasks": 0,
-            # Number of seconds elapsed during development
-            "elapsed_time": 0,
-            # Total number of lines created by GPT Pilot
-            "created_lines": 0,
-            # End result of development:
-            # - success:initial-project
-            # - success:feature
-            # - success:exit
-            # - failure
-            # - failure:api-error
-            # - interrupt
-            "end_result": None,
-            # Whether the project is continuation of a previous session
-            "is_continuation": False,
-            # Optional user feedback
-            "user_feedback": None,
-            # If GPT Pilot crashes, record diagnostics
-            "crash_diagnostics": None,
-            # Statistics for large requests
-            "large_requests": None,
-            # Statistics for slow requests
-            "slow_requests": None,
-        })
+        self.data.update(
+            {
+                # Number of LLM requests made
+                "num_llm_requests": 0,
+                # Number of LLM requests that resulted in an error
+                "num_llm_errors": 0,
+                # Number of tokens used for LLM requests
+                "num_llm_tokens": 0,
+                # Number of development steps
+                "num_steps": 0,
+                # Number of commands run during development
+                "num_commands": 0,
+                # Number of times a human input was required during development
+                "num_inputs": 0,
+                # Number of files in the project
+                "num_files": 0,
+                # Total number of lines in the project
+                "num_lines": 0,
+                # Number of tasks started during development
+                "num_tasks": 0,
+                # Number of seconds elapsed during development
+                "elapsed_time": 0,
+                # Total number of lines created by GPT Pilot
+                "created_lines": 0,
+                # End result of development:
+                # - success:initial-project
+                # - success:feature
+                # - success:exit
+                # - failure
+                # - failure:api-error
+                # - interrupt
+                "end_result": None,
+                # Whether the project is continuation of a previous session
+                "is_continuation": False,
+                # Optional user feedback
+                "user_feedback": None,
+                # If GPT Pilot crashes, record diagnostics
+                "crash_diagnostics": None,
+                # Statistics for large requests
+                "large_requests": None,
+                # Statistics for slow requests
+                "slow_requests": None,
+            }
+        )
         self.start_time = None
         self.end_time = None
         self.large_requests = []
@@ -165,9 +167,7 @@ class Telemetry:
         self.telemetry_id = f"telemetry-{uuid4()}"
         self.endpoint = self.DEFAULT_ENDPOINT
         self.enabled = True
-        log.debug(
-            f"Telemetry.setup(): setting up anonymous telemetry (id={self.telemetry_id})"
-        )
+        log.debug(f"Telemetry.setup(): setting up anonymous telemetry (id={self.telemetry_id})")
 
         settings.telemetry = {
             "id": self.telemetry_id,
@@ -185,9 +185,7 @@ class Telemetry:
         Note: only known data fields may be set, see `Telemetry.clear_data()` for a list.
         """
         if name not in self.data:
-            log.error(
-                f"Telemetry.record(): ignoring unknown telemetry data field: {name}"
-            )
+            log.error(f"Telemetry.record(): ignoring unknown telemetry data field: {name}")
             return
 
         self.data[name] = value
@@ -202,9 +200,7 @@ class Telemetry:
         Note: only known data fields may be increased, see `Telemetry.clear_data()` for a list.
         """
         if name not in self.data:
-            log.error(
-                f"Telemetry.increase(): ignoring unknown telemetry data field: {name}"
-            )
+            log.error(f"Telemetry.increase(): ignoring unknown telemetry data field: {name}")
             return
 
         self.data[name] += value
@@ -259,11 +255,8 @@ class Telemetry:
             while tb is not None:
                 frame = tb.tb_frame
                 file_path = Path(frame.f_code.co_filename).absolute().relative_to(root_dir).as_posix()
-                frame_info = {
-                    "file": file_path,
-                    "line": tb.tb_lineno
-                }
-                if not file_path.startswith('pilot-env'):
+                frame_info = {"file": file_path, "line": tb.tb_lineno}
+                if not file_path.startswith("pilot-env"):
                     frames.append(frame_info)
                 tb = tb.tb_next
         except:  # noqa
@@ -274,7 +267,7 @@ class Telemetry:
             "stack_trace": stack_trace,
             "exception_class": exception_class_name,
             "exception_message": exception_message,
-            "frames": frames[:self.MAX_CRASH_FRAMES],
+            "frames": frames[: self.MAX_CRASH_FRAMES],
         }
 
     def record_llm_request(
@@ -327,7 +320,7 @@ class Telemetry:
             "median_time": sorted(self.slow_requests)[n_slow // 2] if n_slow > 0 else None,
         }
 
-    def send(self, event:str = "pilot-telemetry"):
+    def send(self, event: str = "pilot-telemetry"):
         """
         Send telemetry data to the phone-home endpoint.
 
@@ -350,17 +343,13 @@ class Telemetry:
             "data": self.data,
         }
 
-        log.debug(
-            f"Telemetry.send(): sending anonymous telemetry data to {self.endpoint}"
-        )
+        log.debug(f"Telemetry.send(): sending anonymous telemetry data to {self.endpoint}")
         try:
             requests.post(self.endpoint, json=payload)
             self.clear_counters()
             self.set("is_continuation", True)
         except Exception as e:
-            log.error(
-                f"Telemetry.send(): failed to send telemetry data: {e}", exc_info=True
-            )
+            log.error(f"Telemetry.send(): failed to send telemetry data: {e}", exc_info=True)
 
     def output_project_stats(self):
         """
@@ -369,11 +358,14 @@ class Telemetry:
         This does not send the stats to any server.
         """
 
-        print({
-            "num_lines": self.data["num_lines"],
-            "num_files": self.data["num_files"],
-            "num_tokens": self.data["num_llm_tokens"],
-        }, type='projectStats')
+        print(
+            {
+                "num_lines": self.data["num_lines"],
+                "num_files": self.data["num_files"],
+                "num_tokens": self.data["num_llm_tokens"],
+            },
+            type="projectStats",
+        )
 
 
 telemetry = Telemetry()

@@ -1,22 +1,20 @@
-from utils.utils import step_already_finished
-from helpers.Agent import Agent
-from utils.style import color_green_bold
-from helpers.AgentConvo import AgentConvo
-
-from utils.utils import should_execute_step, generate_app_data
-from database.database import save_progress, get_progress_steps, save_feature, get_features_by_app_id
-from logger.logger import logger
-from const.function_calls import DEVELOPMENT_PLAN
 from const.common import EXAMPLE_PROJECT_PLAN
+from const.function_calls import DEVELOPMENT_PLAN
+from database.database import get_features_by_app_id, get_progress_steps, save_feature, save_progress
+from helpers.Agent import Agent
+from helpers.AgentConvo import AgentConvo
+from logger.logger import logger
 from templates import apply_project_template
 from utils.exit import trace_code_event
+from utils.style import color_green_bold
+from utils.utils import generate_app_data, should_execute_step, step_already_finished
 
-DEVELOPMENT_PLANNING_STEP = 'development_planning'
+DEVELOPMENT_PLANNING_STEP = "development_planning"
 
 
 class TechLead(Agent):
     def __init__(self, project):
-        super().__init__('tech_lead', project)
+        super().__init__("tech_lead", project)
         self.save_dev_steps = False
         self.convo_feature_plan = AgentConvo(self)
 
@@ -25,25 +23,26 @@ class TechLead(Agent):
         self.convo_development_plan = AgentConvo(self)
 
         # If this app_id already did this step, just get all data from DB and don't ask user again
-        step = get_progress_steps(self.project.args['app_id'], DEVELOPMENT_PLANNING_STEP)
-        if step and not should_execute_step(self.project.args['step'], DEVELOPMENT_PLANNING_STEP):
+        step = get_progress_steps(self.project.args["app_id"], DEVELOPMENT_PLANNING_STEP)
+        if step and not should_execute_step(self.project.args["step"], DEVELOPMENT_PLANNING_STEP):
             step_already_finished(self.project.args, step)
-            self.project.development_plan = step['development_plan']
+            self.project.development_plan = step["development_plan"]
             return
 
         existing_summary = apply_project_template(self.project)
 
         # DEVELOPMENT PLANNING
-        print(color_green_bold("Starting to create the action plan for development...\n"), category='agent:tech-lead')
+        print(color_green_bold("Starting to create the action plan for development...\n"), category="agent:tech-lead")
         logger.info("Starting to create the action plan for development...")
 
         if self.project.project_manager.is_example_project:
             llm_response = {"plan": EXAMPLE_PROJECT_PLAN}
         else:
-            llm_response = self.convo_development_plan.send_message('development/plan.prompt',
+            llm_response = self.convo_development_plan.send_message(
+                "development/plan.prompt",
                 {
-                    "name": self.project.args['name'],
-                    "app_type": self.project.args['app_type'],
+                    "name": self.project.args["name"],
+                    "app_type": self.project.args["app_type"],
                     "app_summary": self.project.project_description,
                     "user_stories": self.project.user_stories,
                     "user_tasks": self.project.user_tasks,
@@ -51,15 +50,19 @@ class TechLead(Agent):
                     "technologies": self.project.system_dependencies + self.project.package_dependencies,
                     "existing_summary": existing_summary,
                     "files": self.project.get_all_coded_files(),
-                    "task_type": 'app',
-                }, DEVELOPMENT_PLAN)
-        self.project.development_plan = llm_response['plan']
+                    "task_type": "app",
+                },
+                DEVELOPMENT_PLAN,
+            )
+        self.project.development_plan = llm_response["plan"]
 
-        logger.info('Plan for development is created.')
+        logger.info("Plan for development is created.")
 
-        save_progress(self.project.args['app_id'], self.project.current_step, {
-            "development_plan": self.project.development_plan, "app_data": generate_app_data(self.project.args)
-        })
+        save_progress(
+            self.project.args["app_id"],
+            self.project.current_step,
+            {"development_plan": self.project.development_plan, "app_data": generate_app_data(self.project.args)},
+        )
 
         return
 
@@ -67,10 +70,11 @@ class TechLead(Agent):
         self.save_dev_steps = True
         self.convo_feature_plan = AgentConvo(self)
 
-        llm_response = self.convo_feature_plan.send_message('development/feature_plan.prompt',
+        llm_response = self.convo_feature_plan.send_message(
+            "development/feature_plan.prompt",
             {
-                "name": self.project.args['name'],
-                "app_type": self.project.args['app_type'],
+                "name": self.project.args["name"],
+                "app_type": self.project.args["app_type"],
                 "app_summary": self.project.project_description,
                 "user_stories": self.project.user_stories,
                 "user_tasks": self.project.user_tasks,
@@ -80,34 +84,40 @@ class TechLead(Agent):
                 "files": self.project.get_all_coded_files(),
                 "previous_features": self.project.previous_features,
                 "feature_description": feature_description,
-                "task_type": 'feature',
-            }, DEVELOPMENT_PLAN)
+                "task_type": "feature",
+            },
+            DEVELOPMENT_PLAN,
+        )
 
-        self.project.development_plan = llm_response['plan']
+        self.project.development_plan = llm_response["plan"]
 
-        logger.info('Plan for feature development is created.')
+        logger.info("Plan for feature development is created.")
         return
 
     def create_feature_summary(self, feature_description):
         self.save_dev_steps = True
         self.convo_feature_summary = AgentConvo(self)
 
-        llm_response = self.convo_feature_summary.send_message('development/feature_summary.prompt',
+        llm_response = self.convo_feature_summary.send_message(
+            "development/feature_summary.prompt",
             {
-                "name": self.project.args['name'],
-                "app_type": self.project.args['app_type'],
+                "name": self.project.args["name"],
+                "app_type": self.project.args["app_type"],
                 "app_summary": self.project.project_description,
                 "feature_description": feature_description,
                 "development_tasks": self.project.development_plan,
-            })
+            },
+        )
 
         self.project.feature_summary = llm_response
 
         if not self.project.skip_steps:
-            save_feature(self.project.args['app_id'],
-                         self.project.feature_summary,
-                         self.convo_feature_plan.messages,
-                         self.project.checkpoints['last_development_step']['id'])
+            save_feature(
+                self.project.args["app_id"],
+                self.project.feature_summary,
+                self.convo_feature_plan.messages,
+                self.project.checkpoints["last_development_step"]["id"],
+            )
 
-        logger.info('Summary for new feature is created.')
+        logger.info("Summary for new feature is created.")
         return

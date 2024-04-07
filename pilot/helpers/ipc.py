@@ -1,9 +1,10 @@
 # ipc.py
-import socket
 import json
+import socket
 import time
 
 from utils.utils import json_serial
+
 
 class IPCClient:
     def __init__(self, port):
@@ -11,7 +12,7 @@ class IPCClient:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print("Connecting to the external process...")
         try:
-            client.connect(('localhost', int(port)))
+            client.connect(("localhost", int(port)))
             self.client = client
             print("Connected!")
         except ConnectionRefusedError:
@@ -28,8 +29,7 @@ class IPCClient:
             return
 
         while True:
-
-            data = b''
+            data = b""
             while True:
                 data = data + self.client.recv(512 * 1024)
                 try:
@@ -40,13 +40,13 @@ class IPCClient:
                     # we should continue to receive more data.
                     continue
 
-            if message['type'] == 'response':
+            if message["type"] == "response":
                 # self.client.close()
-                return message['content']
+                return message["content"]
 
     def send(self, data):
         serialized_data = json.dumps(data, default=json_serial)
         data_length = len(serialized_data)
         if self.client is not None:
-            self.client.sendall(data_length.to_bytes(4, byteorder='big'))
-            self.client.sendall(serialized_data.encode('utf-8'))
+            self.client.sendall(data_length.to_bytes(4, byteorder="big"))
+            self.client.sendall(serialized_data.encode("utf-8"))

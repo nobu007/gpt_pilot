@@ -9,8 +9,8 @@ def run_test(test_name: str, args):
 
     tests = {
         # 'run_command_until_success': run_command_until_success,
-        'cli_execute_command': cli_execute_command,
-        'continue_development': test_continue_development,
+        "cli_execute_command": cli_execute_command,
+        "continue_development": test_continue_development,
     }
 
     if test_name in tests:
